@@ -2,6 +2,7 @@ import { defineConfig } from "vitepress";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  lastUpdated: true,
   ignoreDeadLinks: true,
   lang: "zh-CN",
   title: "Firecracker中文文档",
@@ -9,7 +10,7 @@ export default defineConfig({
     "Firecracker 是一款开源虚拟化技术，通过轻量级 microVM 提供容器般的速度与虚拟机级别的安全隔离，专为无服务器和多租户环境设计。",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    nav: [{ text: "Home", link: "/zh/index" }],
+    nav: [{ text: "Home", link: "/index" }],
 
     sidebar: [
       {
