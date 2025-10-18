@@ -1,61 +1,52 @@
-# Setting up a Development Environment for Firecracker
+# 为 Firecracker 搭建开发环境
 
-Firecracker uses KVM for the actual resource virtualization, hence setting up a
-development environment requires either a bare-metal machine (with hardware
-virtualization), or a virtual machine that supports nested virtualization. The
-different options are outlined below. Once the environment is set up, one can
-continue with the specific steps of setting up Firecracker (e.g., as outlined in
-the [Getting Started](getting-started.md) instructions).
+Firecracker 采用 KVM 实现实际资源虚拟化，因此搭建开发环境需满足以下条件之一：裸机设备（需支持硬件虚拟化）或支持嵌套虚拟化的虚拟机。环境配置完成后，即可继续执行 Firecracker 的具体安装步骤（例如参见[入门指南](getting-started.md)中的说明）。
 
-## Local
+## 本地
 
-### Local Bare-Metal Machine
+### 本地裸机
 
 `[TODO]`
 
-### Local Virtual Machine
+### 本地虚拟机
 
-#### macOS with VMware Fusion
+#### 搭载 VMware Fusion 的 macOS
 
-Note that Firecracker development on macOS has no hard dependency on VMware
-Fusion or Ubuntu. All that is required is a Linux VM that supports nested
-virtualization. This is but one example of that setup:
+请注意，在 macOS 上开发 Firecracker 并不强制依赖 VMware Fusion 或 Ubuntu。
+所需的仅是一个支持嵌套虚拟化的 Linux 虚拟机。以下仅为该配置的一个示例：
 
-1. Download and install
-   [VMware Fusion](https://www.vmware.com/products/fusion/fusion-evaluation.html).
-1. Download an [Ubuntu 18.04.2 LTS](https://www.ubuntu.com/download/desktop) ISO
-   image.
-1. Open VMware Fusion, open the **File** menu, and select **New...** to bring up
-   the **Select the Installation Method** window.
-1. Find the ISO image you downloaded in step 2, and drag it onto the VMware
-   window opened in step 3.
-1. You should now be at the **Create a New Virtual Machine** window. Ensure the
-   Ubuntu 18.04.2 image is highlighted, and click **Continue**.
-1. On the **Linux Easy Install** window, leave the **Use Easy Install** option
-   checked, enter a password, and click **Continue**.
-1. On the **Finish** window, click **Finish**, and save the `.vmwarevm` file if
+1. 下载并进行安装
+   [VMware Fusion](https://www.vmware.com/products/fusion/fusion-evaluation.html)。
+2. 安装 [Ubuntu 18.04.2 LTS](https://www.ubuntu.com/download/desktop) ISO 镜像。
+3. 打开 VMware Fusion，点击**File**菜单，选择**New...**以调出
+   **Select the Installation Method**窗口。
+4. 找到在步骤 2 中下载的 ISO 映像文件，将其拖放到步骤 3 中打开的 VMware 窗口上。
+5. 您现在应处于**Create a New Virtual Machine**窗口。请确保
+   Ubuntu 18.04.2 镜像处于高亮状态，然后点击**Continue**。
+6. 在 **Linux Easy Install** 窗口中，保持 **Use Easy Install** 选项被选中，输入密码，然后点击 **Continue**。
+7. On the **Finish** window, click **Finish**, and save the `.vmwarevm` file if
    prompted.
-1. After the VM starts up, open the **Virtual Machine** menu, and select **Shut
+8. After the VM starts up, open the **Virtual Machine** menu, and select **Shut
    Down**.
-1. After the VM shuts down, open the **Virtual Machine** menu, and select
+9. After the VM shuts down, open the **Virtual Machine** menu, and select
    **Settings...**.
-1. From the settings window, select **Processors & Memory**, and then unfurl the
-   **Advanced options** section.
-1. Check the **Enable hypervisor applications in this virtual machine** option,
-   close the settings window, open the **Virtual Machine** menu, and select
-   **Start Up**.
-1. Network adapter setting for the VM must use auto-detect bridged networking.
-   Go to Virtual Machine, Settings, Network Adapter, select Autodetect under
-   Bridged Networking.
-1. If you receive a **Cannot connect the virtual device sata0:1 because no
-   corresponding device is available on the host.** error, you can respond
-   **No** to the prompt.
-1. Once the VM starts up, log in as the user you created in step 6.
-1. After logging in, open the **Terminal** app, and run
-   `sudo apt install curl -y` to install cURL.
-1. Now you can continue with the Firecracker
-   [Getting Started](getting-started.md) instructions to install and configure
-   Firecracker in the new VM.
+10. From the settings window, select **Processors & Memory**, and then unfurl the
+    **Advanced options** section.
+11. Check the **Enable hypervisor applications in this virtual machine** option,
+    close the settings window, open the **Virtual Machine** menu, and select
+    **Start Up**.
+12. Network adapter setting for the VM must use auto-detect bridged networking.
+    Go to Virtual Machine, Settings, Network Adapter, select Autodetect under
+    Bridged Networking.
+13. If you receive a **Cannot connect the virtual device sata0:1 because no
+    corresponding device is available on the host.** error, you can respond
+    **No** to the prompt.
+14. Once the VM starts up, log in as the user you created in step 6.
+15. After logging in, open the **Terminal** app, and run
+    `sudo apt install curl -y` to install cURL.
+16. Now you can continue with the Firecracker
+    [Getting Started](getting-started.md) instructions to install and configure
+    Firecracker in the new VM.
 
 ## Cloud
 
