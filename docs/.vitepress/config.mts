@@ -6,7 +6,7 @@ export default defineConfig({
   ignoreDeadLinks: true,
   lang: "zh-CN",
   title: "Firecracker中文文档",
-  base: "/firecrackerdocs/",
+  base: "/firecrackerdocs",
   description:
     "Firecracker 是一款开源虚拟化技术，通过轻量级 microVM 提供容器般的速度与虚拟机级别的安全隔离，专为无服务器和多租户环境设计。",
   themeConfig: {
