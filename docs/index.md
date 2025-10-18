@@ -20,6 +20,6 @@ features:
     details: 严格遵循最小权限原则，确保不同虚拟机之间的完全隔离，防止潜在的安全威胁。
   - title: 多租户支持
     details: 适用于大规模多租户环境，能够有效管理成千上万个虚拟机实例。
-    title: API驱动
+  - title: API驱动
     details: 提供了RESTful API接口，方便与其他系统集成或实现自动化操作。
 ---
