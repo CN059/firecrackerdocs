@@ -18,6 +18,7 @@ export default defineConfig({
         text: "Firecracker初步",
         collapsed: true,
         items: [
+          { text: "概述", link: "/README.md" },
           { text: "开发环境搭建", link: "/dev-machine-setup" },
           { text: "开始使用Firecracker", link: "/getting-started" },
           { text: "配置initrd", link: "/initrd" },
