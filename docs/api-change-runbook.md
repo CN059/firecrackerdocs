@@ -1,37 +1,24 @@
-# Runbook for Firecracker API changes
+# Firecracker API 变更操作手册
 
-This runbook will cover triaging API changes and ways to implement them
-appropriately.
+本运行手册将涵盖 API 变更的分类处理及实施方法，
+并指导如何恰当地实施这些变更。
 
-## Definitions
+## 定义
 
-- *Deprecated* - We will consider a deprecated API element (endpoint and/or
-  parts of an endpoint) to be an element which still provides users with access
-  to its backing functionality and can be used, but will soon be removed
-  completely along with said functionality in an upcoming version.
-- *Mandatory endpoint* - We will consider an endpoint mandatory if Firecracker
-  cannot operate normally without performing a request to it.
-- *Optional endpoint* - We will consider an endpoint optional if Firecracker can
-  operate normally without performing a request to it and the functionality
-  behind it is not essential.
-- *Mandatory header/field* - We will consider a header/field mandatory in an
-  HTTP message if the request will fail without specifying said header/field.
-- *Optional header/field* - We will consider a header/field optional in an HTTP
-  message if the request will succeeds without specifying said header/field.
+- _Deprecated_ - 我们将把已弃用的 API 元素（端点 和 /或端点的部分）视为仍然允许用户访问其支持的功能的元素，但在即将发布的版本中，该元素及其功能将很快被完全移除。
+- _Mandatory endpoint_ - 如果 Firecracker 在不向其发出请求的情况下无法正常运行，我们将视该端点为必需。
+- _Optional endpoint_ - 如果 Firecracker 在不对该端点发出请求的情况下仍能正常运行，并且其背后的功能不是必需的，我们将认为该端点是可选的。
+- _Mandatory header/field_ - 如果在 HTTP 消息中未指定某个头部/字段请求就会失败，我们将视该头部/字段为必需。
+- _Optional header/field_ - 如果请求在未指定该头部/字段的情况下仍能成功，我们将认为 HTTP 消息中的该头部/字段是可选的。
 
-## Triaging API changes
+## 对 API 变更进行分类处理
 
-For the purposes of this document, there are 2 main categories for API changes,
-namely *breaking* and *non-breaking*.
+本页面主要将 API 分为两类：
+即 _breaking（破坏性）_ 与 _non-breaking（非破坏性）_ 。
 
-### What is a breaking change?
+### 什么是破坏性变更？
 
-A breaking change in the API is a change that makes the API incompatible with
-the previous version (backwards incompatible). In an effort to avoid a breaking
-change, we may take the route of deprecation and incrementing the minor version
-in an effort to preserve backwards compatibility, but breaking changes will
-always ultimately result in incrementing the major version. Here is a
-non-exhaustive list of such changes:
+API 中的破坏性变更会导致该 API 与旧版本不兼容（向后不兼容）。为避免破坏性变更，我们可能采取弃用机制并递增次要版本号以保持向后兼容性，但破坏性变更最终必然导致主要版本号的递增。以下为此类变更的非详尽列表：
 
 1. Adding a new mandatory endpoint/HTTP method.
 1. Removing an endpoint/method.
@@ -40,7 +27,7 @@ non-exhaustive list of such changes:
 1. Adding a mandatory response field.
 1. Removing a response header/field.
 
-### What is NOT a breaking change?
+### 什么不算破坏性变更？
 
 A change in the API is not a breaking change if the version resulting from it is
 compatible with the previous one (backwards compatible). The outcome of a
@@ -58,7 +45,7 @@ non-exhaustive list of such changes:
 1. Changing the URI of an endpoint.
 1. Changing the metrics output format.
 
-## Implementing API changes
+## API 变更的实现
 
 API changes result in version increases. As Firecracker’s support policy is
 based on [semantic versioning 2.0.0][1], we will look at API changes from this
@@ -71,23 +58,23 @@ point of view.
 
 ![Flowchart for changing the Firecracker API](images/api_change_flowchart.png?raw=true "Flowchart for changing the Firecracker API")
 
-*All deprecated endpoints are supported until at least the next major version
-release, where they may be _removed_.*
+_All deprecated endpoints are supported until at least the next major version
+release, where they may be *removed*._
 
-### How to follow the flowchart - with examples
+### 如何使用流程图（附示例）
 
 We will go through multiple types of API changes and provide ways to ensure we
 don’t break our backwards compatibility promise to our customers. The list is
 split into categories of components changed.
 
-- *Entire endpoints*
+- _Entire endpoints_
   - Adding an optional endpoint with new functionality - Increment minor
     version.
   - Adding a command line parameter - Increment minor version.
   - Removing an endpoint - Deprecate endpoint and increment minor version →
     Remove endpoint when incrementing major version.
   - Adding a mandatory endpoint - Increment major version.
-- *Request*
+- _Request_
   - Adding an optional header/field - Increment minor version.
   - Renaming a header/field - Accept both names and deprecate the old one →
     Remove old name when incrementing major version.
@@ -97,13 +84,13 @@ split into categories of components changed.
     and deprecate the old one → Remove old endpoint when incrementing major
     version.
   - Adding a mandatory header/field - Increment major version.
-- *Response*
+- _Response_
   - Adding a header/field - Create a new, separate endpoint with the changes and
     deprecate the old one → Remove old endpoint when incrementing major version.
   - Removing a header/field - Create a new, separate endpoint with the changes
     and deprecate the old one → Remove old endpoint when incrementing major
     version.
-- *Command line parameter*
+- _Command line parameter_
   - Renaming a command line parameter - Accept both names and deprecate the old
     one → Remove old name when incrementing major version.
   - Changing expected value taken by a command line parameter - Accept both
@@ -125,7 +112,7 @@ doing so.
 Some paths in the flowchart above lead to deprecation. Based on the initial
 conditions, there are 2 major cases where we need to deprecate an endpoint:
 
-- *Changing an existing endpoint*
+- _Changing an existing endpoint_
   - Often happens because directly changing the endpoint would be a breaking
     change.
   - We usually create a clone of the old endpoint we want to deprecate and make
@@ -138,7 +125,7 @@ conditions, there are 2 major cases where we need to deprecate an endpoint:
       forward is to take the old URI and append `/v2` to it.
     - for command line endpoints, we can usually find a different name for the
       new endpoint.
-- *Deprecating an endpoint without adding a replacement to it*
+- _Deprecating an endpoint without adding a replacement to it_
   - Often happens when we want to phase out a certain feature or functionality,
     but doing so immediately would be a breaking change.
   - We just mark the endpoint as deprecated.
