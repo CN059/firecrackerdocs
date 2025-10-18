@@ -1,6 +1,4 @@
-<picture>
-   <img alt="Firecracker Logo Title" width="750" src="images/fc_logo_full_transparent-bg.png">
-</picture>
+![fc_logo_full_transparent-bg](images/fc_logo_full_transparent-bg.png?raw=true)
 
 我们的使命是实现安全、多租户、低开销的容器和函数工作负载执行。
 
