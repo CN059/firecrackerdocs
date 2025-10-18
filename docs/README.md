@@ -1,7 +1,7 @@
 <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="images/fc_logo_full_transparent-bg_white-fg.png">
-   <source media="(prefers-color-scheme: light)" srcset="images/fc_logo_full_transparent-bg.png">
-   <img alt="Firecracker Logo Title" width="750" src="images/fc_logo_full_transparent-bg.png">
+   <source media="(prefers-color-scheme: dark)" srcset="/docs/images/fc_logo_full_transparent-bg_white-fg.png">
+   <source media="(prefers-color-scheme: light)" srcset="/docs/images/fc_logo_full_transparent-bg.png">
+   <img alt="Firecracker Logo Title" width="750" src="/docs/images/fc_logo_full_transparent-bg.png">
 </picture>
 
 我们的使命是实现安全、多租户、低开销的容器和函数工作负载执行。
