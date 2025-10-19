@@ -1,175 +1,112 @@
-# Production Host Setup Recommendations
+# 生产环境主机配置建议
 
-Firecracker relies on KVM and on the processor virtualization features for
-workload isolation. The host and guest kernels and host microcode must be
-regularly patched in accordance with your distribution's security advisories
-such as [ALAS](https://alas.aws.amazon.com/alas2023.html) for Amazon Linux.
+Firecracker 依赖 KVM 及处理器虚拟化功能实现工作负载隔离。主机与客户机内核及主机微代码必须根据发行版的安保公告（如 Amazon Linux 的[ALAS](https://alas.aws.amazon.com/alas2023.html)）定期打补丁。
 
-Security guarantees and defense in depth can only be upheld, if the following
-list of recommendations are implemented in production.
+只有在生产环境中实施以下建议清单，才能维持安全保障和深度防御机制。
 
-## Firecracker Configuration
+## Firecracker 配置
 
 ### Seccomp
 
-Firecracker uses
-[seccomp](https://www.kernel.org/doc/Documentation/prctl/seccomp_filter.txt)
-filters to limit the system calls allowed by the host OS to the required
-minimum.
+Firecracker 使用[seccomp](https://www.kernel.org/doc/Documentation/prctl/seccomp_filter.txt)过滤器将主机操作系统允许的系统调用限制在最低必要范围内。
 
-By default, Firecracker uses the most restrictive filters, which is the
-recommended option for production usage.
+默认情况下，Firecracker 采用最严格的过滤器，这是生产环境中推荐的选项。
 
-Production usage of the `--seccomp-filter` or `--no-seccomp` parameters is not
-recommended.
+不建议在生产环境中使用 `--seccomp-filter` 或 `--no-seccomp` 参数。
 
-### 8250 Serial Device
+### 8250 串行设备
 
-Firecracker implements the 8250 serial device, which is visible from the guest
-side and is tied to the Firecracker/non-daemonized jailer process stdout.
-Without proper handling, because the guest has access to the serial device, this
-can lead to unbound memory or storage usage on the host side. Firecracker does
-not offer users the option to limit serial data transfer, nor does it impose any
-restrictions on stdout handling. Users are responsible for handling the memory
-and storage usage of the Firecracker process stdout. We suggest using any
-upper-bounded forms of storage, such as fixed-size or ring buffers, using
-programs like `journald` or `logrotate`, or redirecting to `/dev/null` or a
-named pipe. Furthermore, we do not recommend that users enable the serial device
-in production. To disable it in the guest kernel, use the `8250.nr_uarts=0` boot
-argument when configuring the boot source. Please be aware that the device can
-be reactivated from within the guest even if it was disabled at boot.
+Firecracker 实现了 8250 串行设备，该设备在客户机侧可见，并绑定到 Firecracker / 非守护进程化（non-daemonized）的 jailer 进程的标准输出。
+若未进行适当处理，由于客户机可以访问该串行设备，可能导致主机侧出现无限制的内存或存储使用。Firecracker 既不提供限制串行数据传输的选项，也不对标准输出处理施加任何约束。用户需自行管理 Firecracker 进程标准输出的内存与存储使用。建议采用具有上限的存储形式（如固定大小或环形缓冲区）、使用 `journald` 或 `logrotate` 等程序，或重定向至 `/dev/null` 及命名管道。此外，我们不建议用户在生产环境中启用该串行设备。若需在客户机内核中禁用该设备，请在配置 boot source 时使用 `8250.nr_uarts=0` 启动参数。请注意：即使在启动时禁用，该设备仍可在客户机内部重新激活。
 
-If Firecracker's `stdout` buffer is non-blocking and full (assuming it has a
-bounded size), any subsequent writes will fail, resulting in data loss, until
-the buffer is freed.
+如果 Firecracker 的`stdout`缓冲区采用非阻塞模式且已满（假设其大小有限），后续写入操作将失败并导致数据丢失，直至该缓冲区被释放。
 
-### Log files
+### 日志文件
 
-Firecracker outputs logging data into a named pipe, socket, or file using the
-path specified in the `log_path` field of logger configuration. Firecracker can
-generate log data as a result of guest operations and therefore the guest can
-influence the volume of data written in the logs. Users are responsible for
-consuming and storing this data safely. We suggest using any upper-bounded forms
-of storage, such as fixed-size or ring buffers, programs like `journald` or
-`logrotate`, or redirecting to a named pipe.
+Firecracker 将日志数据输出至命名管道、套接字或文件，具体路径由日志记录器配置中的`log_path`字段指定。由于 Firecracker 会因客户机操作生成日志数据，客户机可影响日志写入量。用户需负责安全处理并存储此类数据。建议采用具有上限的存储形式，例如固定大小或环形缓冲区，使用`journald`或`logrotate`等程序，或重定向至命名管道。
 
-### Logging and performance
+### 日志记录与性能
 
-We recommend adding `quiet loglevel=1` to the host kernel command line to limit
-the number of messages written to the serial console. This is because some host
-configurations can have an effect on Firecracker's performance as the process
-will generate host kernel logs during normal operations.
+我们建议在主机内核命令行中添加 `quiet loglevel=1` 以限制写入串行控制台的消息数量。这是因为某些主机配置可能影响 Firecracker 的性能——该进程在正常运行期间会生成主机内核日志。
 
-The most recent example of this was the addition of `console=ttyAMA0` host
-kernel command line argument on one of our testing setups. This enabled console
-logging, which degraded the snapshot restore time from 3ms to 8.5ms on
-`aarch64`. In this case, creating the tap device for snapshot restore generated
-host kernel logs, which were very slow to write.
+最近的实例是我们在某测试环境中添加了 `console=ttyAMA0` 主机内核命令行参数。此操作启用了控制台日志记录，导致 `aarch64` 架构上的快照恢复时间从 3 毫秒延长至 8.5 毫秒。在此情况下，为快照恢复所创建中的 tap 设备会生成主机内核日志，而这些日志的写入速度极慢。
 
-### Logging and signal handlers
+### 日志记录与信号处理程序
 
-Firecracker installs custom signal handlers for some of the POSIX signals, such
-as SIGSEGV, SIGSYS, etc.
+Firecracker 为某些 POSIX 信号（如 SIGSEGV、SIGSYS 等）安装了自定义信号处理程序。
 
-The custom signal handlers used by Firecracker are not async-signal-safe, since
-they write logs and flush the metrics, which use locks for synchronization.
-While very unlikely, it is possible that the handler will intercept a signal on
-a thread which is already holding a lock to the log or metrics buffer. This can
-result in a deadlock, where the specific Firecracker thread becomes
-unresponsive.
+由于 Firecracker 使用的自定义信号处理程序会写入日志并刷新指标（这些操作使用锁进行同步），因此它们并非异步信号安全的。虽然可能性极低，但处理程序仍可能在某个线程已持有日志或指标缓冲区锁的情况下拦截信号。这可能导致死锁，使特定的 Firecracker 线程无法响应。
 
-While there is no security impact caused by the deadlock, we recommend that
-customers have an overwatcher process on the host, that periodically looks for
-Firecracker processes that are unresponsive, and kills them, by SIGKILL.
+虽然死锁不会造成安全影响，但我们建议客户在主机上部署监视进程，定期检测无响应的 Firecracker 进程，并通过 SIGKILL 信号终止它们。
 
-## Jailer Configuration
+## Jailer 配置
 
-For assuring secure isolation in production deployments, Firecracker should be
-started using the `jailer` binary that's part of each Firecracker release, or
-executed under process constraints equal or more restrictive than those in the
-jailer. For more about Firecracker sandboxing please see
-[Firecracker design](design.md)
+为确保生产环境部署中的安全隔离，应使用 Firecracker 每个版本中包含的`jailer`二进制文件启动 Firecracker，或在比 jailer 更严格或等同于 jailer 的进程约束下执行。有关 Firecracker 沙箱的更多信息，请参阅[Firecracker 架构设计](design.md)。
 
-The Jailer process applies
-[cgroup](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt),
-namespace isolation and drops privileges of the Firecracker process.
+Jailer 进程应用[cgroup](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt)，实现命名空间隔离并降低 Firecracker 进程的特权。
 
-To set up the jailer correctly, you'll need to:
+要正确设置 jailer，您需要：
 
-- Create a dedicated non-privileged POSIX user and group to run Firecracker
-  under. Use the created POSIX user and group IDs in Jailer's `--uid <uid>` and
-  `--gid <gid>` flags, respectively. This will run the Firecracker as the
-  created non-privileged user and group. All file system resources used for
-  Firecracker should be owned by this user and group. Apply least privilege to
-  the resource files owned by this user and group to prevent other accounts from
-  unauthorized file access. When running multiple Firecracker instances it is
-  recommended that each runs with its unique `uid` and `gid` to provide an extra
-  layer of security for their individually owned resources in the unlikely case
-  where any one of the jails is broken out of.
+- 为运行 Firecracker 创建专用的非特权 POSIX 用户和组。
+  在 Jailer 的 `--uid <UID>` 和 `--gid <GID>` 标志中分别使用创建的 POSIX 用户 ID 和组 ID。
+  这将使 Firecracker 以创建的非特权用户和组身份运行。所有用于 Firecracker 的文件系统资源
+  应归属于该用户及组。对该用户组拥有的资源文件实施最小权限原则，
+  防止其他账户未经授权访问文件。运行多个 Firecracker 实例时，建议每个实例使用独立的`uid`和`gid`，
+  为各自拥有的资源提供额外安全层。此举可在极端情况下（如某 jails 环境被突破）
+  保障资源安全。
 
-Firecracker's customers are strongly advised to use the provided
-`resource-limits` and `cgroup` functionalities encapsulated within jailer, in
-order to control Firecracker's resource consumption in a way that makes the most
-sense to their specific workload. While aiming to provide as much control as
-possible, we cannot enforce aggressive default constraints resources such as
-memory or CPU because these are highly dependent on the workload type and
-usecase.
+强烈建议 Firecracker 的客户使用 jailer 内封装的
+`resource-limits` 和 `cgroup` 功能，
+以针对其特定工作负载最合理的方式控制 Firecracker 的资源消耗。
+虽然我们致力于提供尽可能多的控制选项，
+但无法强制实施内存或 CPU 等资源的严格默认限制，
+因为这些限制高度依赖于工作负载类型和具体使用场景。
 
-Here are some recommendations on how to limit the process's resources:
+以下是一些限制进程资源的建议：
 
-### Disk
+### 磁盘
 
-- `cgroup` provides a
-  [Block IO Controller](https://www.kernel.org/doc/Documentation/cgroup-v1/blkio-controller.txt)
-  which allows users to control I/O operations through the following files:
+- `cgroup` 提供了一个
+  [块 I/O 控制器](https://www.kernel.org/doc/Documentation/cgroup-v1/blkio-controller.txt)
+  允许用户通过以下文件控制 I/O 操作：
 
-  - `blkio.throttle.io_serviced` - bounds the number of I/Os issued to disk
-  - `blkio.throttle.io_service_bytes` - sets a limit on the number of bytes
-    transferred to/from the disk
+  - `blkio.throttle.io_serviced` - 限制发送到磁盘的 I/O 操作次数
+  - `blkio.throttle.io_service_bytes` - 设定磁盘传输字节数的上限
 
-- Jailer's `resource-limit` provides control on the disk usage through:
+- Jailer 的 `resource-limit` 通过以下方式控制磁盘使用：
 
-  - `fsize` - limits the size in bytes for files created by the process
-  - `no-file` - specifies a value greater than the maximum file descriptor
-    number that can be opened by the process. If not specified, it defaults to
+  - `fsize` - 限制进程创建文件的字节大小
+  - `no-file` - 指定大于进程可打开最大文件描述符数的值。若未指定，默认值为
     4096\.
 
-### Memory
+### 内存
 
-- `cgroup` provides a
-  [Memory Resource Controller](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
-  to allow setting upper limits to memory usage:
-  - `memory.limit_in_bytes` - bounds the memory usage
-  - `memory.memsw.limit_in_bytes` - limits the memory+swap usage
-  - `memory.soft_limit_in_bytes` - enables flexible sharing of memory. Under
-    normal circumstances, control groups are allowed to use as much of the
-    memory as needed, constrained only by their hard limits set with the
-    `memory.limit_in_bytes` parameter. However, when the system detects memory
-    contention or low memory, control groups are forced to restrict their
-    consumption to their soft limits.
+- `cgroup` 提供了一个
+  [内存资源控制器](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
+  用于设置内存使用上限：
+  - `memory.limit_in_bytes` - 限制内存使用量
+  - `memory.memsw.limit_in_bytes` - 限制内存+交换空间使用量
+  - `memory.soft_limit_in_bytes` - 启用内存灵活共享机制。在正常情况下，控制组可根据需求使用任意数量的内存，仅受`memory.limit_in_bytes`参数设置的硬性限制约束。但当系统检测到内存争用或内存不足时，控制组将被迫将其消耗限制在软性限制范围内。
 
 ### vCPU
 
-- `cgroup`’s
-  [CPU Controller](https://www.kernel.org/doc/Documentation/cgroup-v1/cpuacct.txt)
-  can guarantee a minimum number of CPU shares when a system is busy and
-  provides CPU bandwidth control through:
-  - `cpu.shares` - limits the amount of CPU that each group it is expected to
-    get. The percentage of CPU assigned is the value of shares divided by the
-    sum of all shares in all `cgroups` in the same level
-  - `cpu.cfs_period_us` - bounds the duration in us of each scheduler period,
-    for bandwidth decisions. This defaults to 100ms
-  - `cpu.cfs_quota_us` - sets the maximum time in microseconds during each
-    `cfs_period_us` for which the current group will be allowed to run
-  - `cpuacct.usage_percpu` - limits the CPU time, in ns, consumed by the process
-    in the group, separated by CPU
+- `cgroup` 的
+  [CPU 控制器](https://www.kernel.org/doc/Documentation/cgroup-v1/cpuacct.txt)
+  可在系统繁忙时保证最低 CPU 份额，并通过以下方式提供 CPU 带宽控制：
+  - `cpu.shares` - 限制每个组预期获得的 CPU 份额。分配的 CPU 百分比等于该组份额除以
+    同层级所有`cgroups`份额总和
+  - `cpu.cfs_period_us` - 限定每个调度周期（以微秒计）的持续时间，用于带宽决策。默认值为 100 毫秒
+  - `cpu.cfs_quota_us` - 设定当前组在每次`cfs_period_us`周期内
+    允许运行的最大时间（单位：微秒）
+  - `cpuacct.usage_percpu` - 按 CPU 核心划分，限制组内进程消耗的 CPU 时间
+    （单位：纳秒）
 
-Additional details of Jailer features can be found in the
-[Jailer documentation](jailer.md).
+更多 Jailer 功能详情请参阅
+[Jailer 文档](jailer.md)。
 
-## Host Security Configuration
+## 主机安全配置
 
-### Constrain CPU overhead caused by kvm-pit kernel threads
+### 限制由 kvm-pit 内核线程引起的 CPU 开销
 
 The current implementation results in host CPU usage increase on x86 CPUs when a
 guest injects timer interrupts with the help of kvm-pit kernel thread. kvm-pit
@@ -197,7 +134,7 @@ To have this change persistent across boots we can append the option to
 
 `echo "options kvm min_timer_period_us=" >> /etc/modprobe.d/kvm.conf`
 
-### Mitigating Network flooding issues
+### 减轻网络泛洪问题
 
 Network can be flooded by creating connections and sending/receiving a
 significant amount of requests. This issue can be mitigated either by
@@ -217,7 +154,7 @@ most classful qdiscs perform rate control.
   - `connlimit` - restricts the number of connections for a destination IP
     address/from a source IP address, as well as limit the bandwidth
 
-### Mitigating Noisy-Neighbour Storage Device Contention
+### 缓解 噪声邻居（Noisy-Neighbour） 存储设备争用问题
 
 Data written to storage devices is managed in Linux with a page cache. Updates
 to these pages are written through to their mapped storage devices
@@ -238,7 +175,7 @@ process via the following tools:
   [block device documentation](api_requests/patch-block.md) for examples of
   calling the API to configure rate limiting.
 
-### Disabling swapping to disk or enabling secure swap
+### 禁用磁盘交换或启用安全交换
 
 Memory pressure on a host can cause memory to be written to drive storage when
 swapping is enabled. Disabling swap mitigates data remanence issues related to
@@ -252,7 +189,7 @@ echo "swap partitions present (Recommendation: no swap)" \
 || echo "no swap partitions (OK)"
 ```
 
-### Mitigating hardware vulnerabilities
+### 缓解硬件漏洞影响
 
 > [!CAUTION]
 >
@@ -272,7 +209,7 @@ echo "swap partitions present (Recommendation: no swap)" \
 > up-to-date, when the kernel is used to load updated microcode of the CPU this
 > should be done as early as possible in the boot process.
 
-#### Side channel attacks
+#### 侧信道攻击
 
 For the purposes of this document we assume a workload that involves arbitrary
 code execution in a multi-tenant context where each Firecracker process
@@ -291,7 +228,7 @@ configuring mitigations against side channel attacks including "Spectre" and
 
 However, some generic recommendations are also provided in what follows.
 
-##### Disable SMT
+##### 禁用 SMT
 
 Simultaneous Multi-Threading (SMT) is frequently a precondition for speculation
 issues utilized in side channel attacks such as Spectre variants, MDS, and
@@ -299,7 +236,7 @@ others, where one tenant could leak information to another tenant or the host.
 As such, our recommendation is to disable SMT in production scenarios that
 require tenant separation.
 
-##### Disable Kernel Samepage Merging
+##### 禁用内核同页合并
 
 Users should disable
 [Kernel Samepage Merging](https://www.kernel.org/doc/html/latest/admin-guide/mm/ksm.html)
@@ -307,7 +244,7 @@ to mitigate [side channel issues](https://eprint.iacr.org/2013/448.pdf) that
 rely on page deduplication for revealing what memory pages are accessed by
 another process.
 
-##### Use memory with Rowhammer mitigation support
+##### 使用支持 Rowhammer 缓解机制的内存
 
 Rowhammer is a memory side-channel issue that can lead to unauthorized cross-
 process memory changes.
@@ -317,7 +254,7 @@ code (ECC) is recommended. Use of pseudo target row refresh (pTRR) for systems
 with pTRR-compliant DDR3 memory can help mitigate the issue, but it also incurs
 a performance penalty.
 
-##### Vendor-specific recommendations
+##### 供应商专属建议
 
 For vendor-specific recommendations, please consult the resources below:
 
@@ -328,7 +265,7 @@ For vendor-specific recommendations, please consult the resources below:
 - ARM:
   [Speculative Processor Vulnerability](https://developer.arm.com/support/arm-security-updates/speculative-processor-vulnerability)
 
-##### [ARM only] VM Physical counter behaviour
+##### [仅限 ARM] 虚拟机物理计数器行为
 
 On ARM, Firecracker tries to reset the `CNTPCT` physical counter on VM boot.
 This is done in order to prevent VM from reading host physical counter value.
@@ -339,7 +276,7 @@ containing
 patch series (starting from 6.4 and newer). For older kernels the counter value
 will be passed through from the host.
 
-##### Verification
+##### 验证
 
 [spectre-meltdown-checker script](https://github.com/speed47/spectre-meltdown-checker)
 can be used to assess host's resilience against several transient execution CVEs
@@ -353,13 +290,13 @@ downloaded and executed like:
 wget -O - https://meltdown.ovh | bash
 ```
 
-### Linux 6.1 boot time regressions
+### Linux 6.1 启动时间退化问题
 
 Linux 6.1 introduced some regressions in the time it takes to boot a VM, for the
 x86_64 architecture. They can be mitigated depending on the CPU and the version
 of cgroups in use.
 
-#### Explanation
+#### 说明
 
 The regression happens in the `KVM_CREATE_VM` ioctl and there are two factors
 that cause the issue:
@@ -395,7 +332,7 @@ does says `Not affected`, the host is not vulnerable and you can apply
 mitigation 2, and optionally 1 for best results. Otherwise it is vulnerable and
 you can only apply mitigation 1.
 
-#### Mitigation 1: `favordynmods`
+#### 缓解措施 1：`favordynmods`
 
 The mitigation in this case is to enable `favordynmods` in cgroupsv1 or
 cgroupsv2. This changes the behavior of all cgroups in the host, and makes it
@@ -412,7 +349,7 @@ done at boot time, through a kernel command line option. Add
 `cgroup_favordynmods=true` to your kernel command line in GRUB. Refer to your
 distribution's documentation for where to make this change[^1]
 
-#### Mitigation 2: `kvm.nx_huge_pages=never`
+#### 缓解措施 2：`kvm.nx_huge_pages=never`
 
 This mitigation is preferred to the previous one as it is less invasive (it
 doesn't affect other cgroups), but it can also be combined with the cgroups
@@ -428,6 +365,7 @@ sudo modprobe $KVM_VENDOR_MOD
 To validate that the change took effect, the file
 `/sys/module/kvm/parameters/nx_huge_pages` should say `never`.
 
-[^1]: Look for `GRUB_CMDLINE_LINUX` in file `/etc/default/grub` in RPM-based
+[^1]:
+    Look for `GRUB_CMDLINE_LINUX` in file `/etc/default/grub` in RPM-based
     systems, and
     [this doc for Ubuntu](https://wiki.ubuntu.com/Kernel/KernelBootParameters).
