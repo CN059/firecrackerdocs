@@ -9,7 +9,7 @@ hero:
   actions:
     - theme: brand
       text: 开始
-      link: /dev-machine-setup
+      link: /README.md
 
 features:
   - title: 轻量级
