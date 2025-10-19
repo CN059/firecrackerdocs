@@ -19,10 +19,10 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: "概述", link: "/README.md" },
-          { text: "设计", link: "/design" },
+          { text: "架构设计", link: "/design" },
           { text: "开发环境搭建", link: "/dev-machine-setup" },
           { text: "开始使用Firecracker", link: "/getting-started" },
-          { text: "rootfs和内核设置", link: "/rootfs-and-kernel-setup" },
+          { text: "选择rootfs和内核", link: "/rootfs-and-kernel-setup" },
           { text: "配置initrd", link: "/initrd" },
           { text: "PVH启动", link: "/pvh" },
           { text: "生产环境主机部署", link: "/prod-host-setup" },
