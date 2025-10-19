@@ -19,12 +19,12 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: "概述", link: "/README.md" },
+          { text: "设计", link: "/design" },
           { text: "开发环境搭建", link: "/dev-machine-setup" },
           { text: "开始使用Firecracker", link: "/getting-started" },
           { text: "配置initrd", link: "/initrd" },
           { text: "API 变更操作手册", link: "/api-change-runbook" },
           { text: "ballooning", link: "/ballooning" },
-          { text: "设计", link: "/design" },
           { text: "设备 API", link: "/device-api" },
           { text: "熵设备（Entropy Device）", link: "/entropy" },
           { text: "形式验证", link: "/formal-verification" },
