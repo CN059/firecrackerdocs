@@ -1,26 +1,22 @@
-# Firecracker logger Configuration
+# firecracker logger 配置
 
-For the logging capability, Firecracker uses a single Logger object. The Logger
-can be configured either by sending a `PUT` API Request to the `/logger` path or
-by command line. You can configure the Logger only once (by using one of these
-options) and once configured, you can not update it.
+对于日志记录功能，Firecracker 使用单一的 Logger 对象。该 Logger 既可通过向 `/logger` 路径发送 `PUT` API 请求进行配置，也可通过命令行配置。您只能通过上述任一方式对 Logger 进行一次配置，配置完成后无法更新。
 
-## Prerequisites
+## 先决条件
 
-In order to configure the Logger, first you have to create the resource that
-will be used for logging:
+要配置 Logger，首先需要创建用于记录日志的资源：
 
 ```bash
-# Create the required named pipe:
+# 创建所需的命名管道：
 mkfifo logs.fifo
 
-# The logger also works with usual files:
+# 该 logger 也可处理常规文件：
 touch logs.file
 ```
 
-## Using the API socket for configuration
+## 使用 API 套接字进行配置
 
-You can configure the Logger by sending the following API command:
+您可以通过发送以下 API 命令来配置 Logger：
 
 ```bash
 curl --unix-socket /tmp/firecracker.socket -i \
@@ -35,37 +31,30 @@ curl --unix-socket /tmp/firecracker.socket -i \
     }"
 ```
 
-Details about the required and optional fields can be found in the
-[swagger definition](../src/firecracker/swagger/firecracker.yaml).
+有关必填字段和可选字段的详细信息，请参阅[Swagger 定义文件](https://github.com/firecracker-microvm/firecracker/blob/main/src/firecracker/swagger/firecracker.yaml)。
 
-## Using command line parameters for configuration
+## 使用命令行参数进行配置
 
-If you want to configure the Logger on startup and without using the API socket,
-you can do that by passing the parameter `--log-path` to the Firecracker
-process:
+若需在启动时配置 Logger 且不使用 API 套接字，可通过向 Firecracker 进程传递参数`--log-path`实现：
 
 ```bash
 ./firecracker --api-sock /tmp/firecracker.socket --log-path
 <path_to_the_logging_fifo_or_file>
 ```
 
-The other Logger fields have, in this case, the default values:
-`Level -> Warning`, `show_level -> false`, `show_log_origin -> false`. For
-configuring these too, you can also pass the following optional parameters:
-`--level <log_level>`, `--show-level`, `--show-log-origin`:
+其他 Logger 字段在此情况下采用默认值：`Level -> Warning`, `show_level -> false`, `show_log_origin -> false`。
+若需配置这些参数，也可传递以下可选参数：`--level <log_level>`, `--show-level`, `--show-log-origin`：
 
 ```bash
 ./firecracker --api-sock /tmp/firecracker.socket --log-path
 logs.fifo --level Error --show-level --show-log-origin
 ```
 
-## Reading from the logging destination
+## 从日志记录目标读取
 
-The `logs.fifo` pipe will store the human readable logs, e.g. errors, warnings
-etc.(depending on the level).
+`logs.fifo` 管道将存储可供人类阅读的日志，例如错误、警告等（具体取决于日志级别）。
 
-If the path provided is a named pipe, you can use the script below to read from
-it:
+若指定的路径为命名管道，可使用以下脚本从中读取数据：
 
 ```shell
 logs=logs.fifo
@@ -81,7 +70,7 @@ echo "Reader exiting"
 
 ```
 
-Otherwise, if the path points to a normal file, you can simply do:
+否则，如果路径指向普通文件，只需执行：
 
 ```shell script
 cat logs.file
