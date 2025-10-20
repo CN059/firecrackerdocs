@@ -103,13 +103,7 @@ Firecracker 进程可由另一个`监狱管理`进程启动。监狱管理进程
 
 ##### 控制组（Cgroups）与 配额（Quotas）
 
-Each Firecracker microVM can be further encapsulated into a cgroup. By setting
-the affinity of the Firecracker microVM to a node via the cpuset subsystem, one
-can prevent the migration of said microVM from one node to another, something
-that would impair performance and cause unnecessary contention on shared
-resources. In addition to setting the affinity, each Firecracker microVM can
-have its own dedicated quota of the CPU time via the cpu subsystem, thus
-guaranteeing that resources are fairly shared across Firecracker microVMs.
+每个 Firecracker 微虚拟机均可进一步封装为 cgroup。通过 cpuset 子系统将 Firecracker 微虚拟机的亲和性设置为特定节点，可防止该微虚拟机在节点间迁移——此类迁移会损害性能并导致共享资源出现不必要的争用。除设置亲和性外，每个 Firecracker 微虚拟机还可通过 cpu 子系统获得专属的 CPU 时间配额，从而确保资源在各微虚拟机间公平分配。
 
 ### 监控
 
