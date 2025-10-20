@@ -2,27 +2,13 @@
 
 ## 什么是 ballon 设备
 
-A memory balloon device is a virtio device that can be used to reclaim and give
-back guest memory through API commands issued by the host. It does this by
-allocating memory in the guest, and then sending the addresses of that memory to
-the host; the host may then remove that memory at will. The device is configured
-through a number of options, and an integer, which represents the target size of
-the balloon, in MiB. The options cannot be changed during operation, but the
-target size can be changed.
+内存气球设备是一种 virtio 设备，可通过主机发出的 API 命令回收并释放客户机内存。其工作原理是在客户机中分配内存，随后将该内存地址发送至主机；主机可据此随意移除该内存。该设备通过若干配置选项及一个整数参数进行设置，该整数以 MiB 为单位表示气球内存的目标容量。运行期间无法修改配置选项，但可调整目标容量。
 
-The behaviour of the balloon is the following: while the actual size of the
-balloon (i.e. the memory it has allocated) is smaller than the target size, it
-continually tries to allocate new memory -- if it fails, it prints an error
-message (`Out of puff! Can't get %d pages`), sleeps for 0.2 seconds, and then
-tries again. While the actual size of the balloon is larger than the target
-size, it will free memory until it hits the target size.
+气球的行为如下：当气球的实际大小（即其分配的内存）小于目标大小时，它会持续尝试分配新内存——若失败则打印错误信息 （`Out of puff! Can't get %d pages`），休眠 0.2 秒后重新尝试。当气球实际大小超过目标大小时，它将释放内存直至达到目标大小。
 
-The device can be configured with the following options:
+该设备可配置以下选项：
 
-- `deflate_on_oom`: if this is set to `true` and a guest process wants to
-  allocate some memory which would make the guest enter an out-of-memory state,
-  the kernel will take some pages from the balloon and give them to said process
-  instead asking the OOM killer process to kill some processes to free memory.
+- `deflate_on_oom`：若此项设置为`true`，当客户进程试图分配内存导致客户系统进入内存不足状态时，内核将从气球内存中提取部分页面分配给该进程，而不是让 OOM killer 进程杀死其他进程来释放内存。
   Note that this applies to physical page allocations in the kernel which belong
   to guest processes. This does not apply to instances when the kernel needs
   memory for its activities (i.e. constructing caches), when the user requests

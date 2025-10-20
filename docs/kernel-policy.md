@@ -1,13 +1,8 @@
-# Firecracker's Kernel Support Policy
+# Firecracker 内核支持政策
 
-Firecracker is tightly coupled with the guest and host kernels on which it is
-run. This document presents our kernel support policy which aims to help our
-customers choose host and guest OS configuration, and predict future kernel
-related changes.
+Firecracker 与其运行的客户机和主机内核紧密耦合。本文档阐述了我们的内核支持策略，旨在协助用户选择主机与客户机操作系统配置，并预测未来内核相关的变更。
 
-We are continuously validating the currently supported Firecracker releases (as
-per [Firecracker’s release policy](../docs/RELEASE_POLICY.md)) using a
-combination of all supported host and guest kernel versions in the table below.
+我们正持续验证当前支持的 Firecracker 版本（依据[Firecracker 发布政策](RELEASE_POLICY.md)，使用下表中列出的所有受支持的宿主机和客户机内核版本组合进行测试。
 
 Once a kernel version is officially added, it is supported for a **minimum of 2
 years**. At least 2 major guest and host versions will be supported at any time.
@@ -116,7 +111,7 @@ the minimal configuration for a guest kernel for a successful microVM boot is:
     - `CONFIG_PCI=y`
     - `CONFIG_KVM_GUEST=y`.
 
-*Optional*: To enable boot logs set `CONFIG_SERIAL_8250_CONSOLE=y` and
+_Optional_: To enable boot logs set `CONFIG_SERIAL_8250_CONSOLE=y` and
 `CONFIG_PRINTK=y` in the guest kernel config.
 
 ##### Booting with ACPI (x86_64 only):

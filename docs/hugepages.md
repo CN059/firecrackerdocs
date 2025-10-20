@@ -1,4 +1,4 @@
-# Backing Guest Memory by Huge Pages
+# 通过大页支持访客内存
 
 Firecracker supports backing the guest memory of a VM by 2MB hugetlbfs pages.
 This can be enabled by setting the `huge_pages` field of `PUT` or `PATCH`
@@ -19,7 +19,7 @@ not try to reserve sufficient hugetlbfs pages at the time of the `mmap` call,
 trying to claim them from the pool on-demand. For details on how to manage this
 pool, please refer to the [Linux Documentation][hugetlbfs_docs].
 
-## Huge Pages and Snapshotting
+## 大页与快照技术
 
 Restoring a Firecracker snapshot of a microVM backed by huge pages will also use
 huge pages to back the restored guest. There is no option to flip between
@@ -31,7 +31,7 @@ size (in KiB) for each memory region as part of the initial handshake, as
 described in our documentation on
 [UFFD-assisted snapshot-restore](snapshotting/handling-page-faults-on-snapshot-resume.md).
 
-## Known Limitations
+## 已知限制
 
 Currently, hugetlbfs support is mutually exclusive with the following
 Firecracker features:
@@ -43,9 +43,9 @@ performance benefits of using huge pages. This is because KVM will
 unconditionally establish guest page tables at 4K granularity if dirty page
 tracking is enabled, even if the host users huge mappings.
 
-## FAQ
+## 常见问题解答
 
-### Why does Firecracker not offer a transparent huge pages (THP) setting?
+### 为什么 Firecracker 不提供透明大页（THP）设置？
 
 Firecracker's guest memory can be memfd based. Linux (as of 6.1) does not offer
 a way to dynamically enable THP for such memory regions. Additionally, UFFD does

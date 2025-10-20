@@ -1,12 +1,11 @@
-# GDB Debugging with Firecracker
+# 使用 Firecracker 进行 GDB 调试
 
-**The GDB feature is not for production use.**
+**GDB 功能不适用于生产环境。**
 
-Firecracker supports debugging the guest kernel via GDB remote serial protocol.
-This allows us to connect GDB to the firecracker process and step through debug
-the guest kernel.
+Firecracker 支持通过 GDB 远程串行协议调试客户机内核。
+这使我们能够将 GDB 连接至 Firecracker 进程，并逐步调试客户机内核。
 
-## Prerequisites
+## 先决条件
 
 Firstly, to enable GDB debugging we need to compile Firecracker with the `gdb`
 feature enabled, this will enable the necessary components for the debugging

@@ -1,10 +1,10 @@
-# Formal Verification in Firecracker
+# Firecracker 中的形式验证
 
 According to Firecracker’s
 [threat model](https://github.com/firecracker-microvm/firecracker/blob/main/docs/design.md#threat-containment),
 all vCPUs are considered to be running potentially malicious code from the
 moment they are started. This means Firecracker can make no assumptions about
-well-formedness of data passed to it by the guest, and have to operate *safely*
+well-formedness of data passed to it by the guest, and have to operate _safely_
 no matter what input it is faced with. Traditional testing methods alone cannot
 guarantee about the general absence of safety issues, as for this we would need
 to write and run every possible unit test, exercising every possible code path -
@@ -33,11 +33,11 @@ are restricted based on some assumptions (e.g. the size of an Ethernet frame
 being 1514 bytes). **Harnesses are only as strong as the assumptions they make,
 so all guarantees from the harness are only valid based on the set of
 assumptions we have in our Kani harnesses.** Generally, they should strive to
-*over-approximate*, meaning it is preferred they cover some “impossible”
+_over-approximate_, meaning it is preferred they cover some “impossible”
 situations instead of making too strong assumptions that cause them to exclude
 realistic scenarios.
 
-## How to run Kani harnesses
+## 如何运行 Kani harnesses
 
 To ensure that no incoming code changes cause regressions on formally verified
 properties, **all Kani harnesses are run on every pull request in our CI.** To
@@ -85,11 +85,11 @@ picked up by the Kani compiler. It is the Kani equivalent of `#[test]`. Lines
 sized token buckets and arbitrary refill times. **This is the key difference to
 a unit test**, where we would be using concrete values instead (e.g.
 `let token_budget = 10;`). Note that Kani will not produce an executable, but
-instead *statically* verifies that code does not violate invariants. We do not
+instead _statically_ verifies that code does not violate invariants. We do not
 actually execute the creation code for all possible inputs.
 
 The final match statement tells us the property we want to verify, which is
-“*bucket creation only fails if size of refill time are zero*”. In all other
+“_bucket creation only fails if size of refill time are zero_”. In all other
 cases, we assert `new` to give us a valid bucket. We mapped these properties
 with assertions. If the verification fails, then that is because one of our
 properties do not hold.
@@ -112,7 +112,7 @@ overflow! Due to `complete_refill_time_ms` getting converted from milliseconds
 to nanoseconds in the constructor, we have to take into consideration that the
 nanosecond value might not fit into a `u64` anymore. Here, the finding is
 benign, as no one would reasonably configure a `ratelimiter` with a replenish
-time of 599730287.457 *years*. A
+time of 599730287.457 _years_. A
 [quick check](https://github.com/firecracker-microvm/firecracker/commit/0db2a130ca4eeffeca9a46e7b6bd45c1bc1c9e21)
 in the constructor fixes it. However, we will also have to adjust our harness!
 Rerunning the harness from above now yields:

@@ -1,17 +1,14 @@
-# The Firecracker Jailer
+# Firecracker jailer
 
-## Disclaimer
+## 免责声明
 
-The jailer is a program designed to isolate the Firecracker process in order to
-enhance Firecracker's security posture. It is meant to address the security
-needs of Firecracker only and is not intended to work with other binaries.
-Additionally, each jailer binary should be used with a statically linked
-Firecracker binary (with the default musl toolchain) of the same version.
-Experimental gnu builds are not supported.
+jailer 程序（jailer）是一款专为隔离 Firecracker 进程而设计的程序，旨在提升 Firecracker 的安全防护能力。该程序仅用于满足 Firecracker 自身的安全需求，不适用于其他二进制文件。
+此外，每个 jailer 二进制文件应与相同版本的静态链接的 Firecracker 二进制文件（使用默认 musl 工具链）配合使用。
+实验性 gnu 构建版本不予支持。
 
-## Jailer Usage
+## Jailer 用法
 
-The jailer is invoked in this manner:
+jailer 以如下方式被调用：
 
 ```bash
 jailer --id <id> \
@@ -29,13 +26,9 @@ jailer --id <id> \
        [--...extra arguments for Firecracker]
 ```
 
-- `--id` specifies the unique VM identification string, which may contain
-  alphanumeric characters and hyphens. The maximum length is currently 64
-  characters.
-- `--exec-file` specifies the path to the Firecracker binary that will be
-  exec-ed by the jailer.
-- `--uid` and `--gid` specify the uid and gid the jailer switches to as it execs
-  the target binary.
+- `--id` 指定虚拟机的唯一标识符字符串，可包含字母数字字符和连字符。当前最大长度为 64 个字符。
+- `--exec-file` 指定 jailer 将执行的 Firecracker 二进制文件路径。
+- `--uid` 和 `--gid` 指定 jailer 执行目标二进制文件时切换的切换到的用户 ID（uid）和组 ID（gid）。
 - `--cgroup-version` is used to select which type of cgroup hierarchy to use for
   the creation of cgroups. The default value is "1" which means that cgroups
   specified with `--cgroup` will be created within a v1 hierarchy. Supported
@@ -85,7 +78,7 @@ jailer --id <id> \
   - `no-file`: Specifies a value one greater than the maximum file descriptor
     number that can be opened by this process.
 
-Here is an example on how to set multiple resource limits using this argument:
+以下是一个使用此参数设置多个资源限制的示例：
 
 ```bash
 --resource-limit fsize=250000000 --resource-limit no-file=1024
