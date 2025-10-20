@@ -1,18 +1,12 @@
 # Device
 
-The Device-API following functionality matrix indicates which devices are
-required for an API call to be usable.
+Device-API 功能矩阵显示了 API 调用所需的设备类型。
 
-**O** - Optional: The device (column) **is not required** for a Firecracker
-microVM API call to succeed. If the device (column) is omitted from a uVM
-definition, a call to one of the [API Endpoints](#api-endpoints) will succeed.
+**O** - 可选：该设备（列）**并非必需**，Firecracker 微虚拟机 API 调用仍可成功。若在 uVM 定义中省略该设备（列），调用 [API 端点](#api-端点) 仍将成功。
 
-**R** - Required: The device (column) **is required** for a Firecracker microVM
-API call to succeed. If the device (column) is omitted from a uVM definition, a
-call to one of the [API Endpoints](#api-endpoints) will fail with a 400 -
-BadRequest - HTTP response.
+**R** - 必填项：该设备（列）**是必需的**，以确保 Firecracker 微虚拟机 API 调用成功。若在 uVM 定义中遗漏该设备（列），调用任一[API 端点](#api-端点)将返回 400 - HTTP 错误响应。
 
-## API Endpoints
+## API 端点
 
 | Endpoint                  | keyboard | serial console | virtio-block | vhost-user-block | virtio-net | virtio-vsock | virtio-rng | virtio-pmem |
 | ------------------------- | :------: | :------------: | :----------: | :--------------: | :--------: | :----------: | :--------: | :---------: |
@@ -32,11 +26,9 @@ BadRequest - HTTP response.
 | `entropy`                 |    O     |       O        |      O       |        O         |     O      |      O       |   **R**    |      O      |
 | `pmem/{id}`               |    O     |       O        |      O       |        O         |     O      |      O       |     O      |    **R**    |
 
-## Input Schema
+## 输入模式
 
-All input schema fields can be found in the [Swagger](https://swagger.io)
-specification:
-[firecracker.yaml](./../src/firecracker/swagger/firecracker.yaml).
+所有输入模式字段均可在[Swagger](https://swagger.io)规范中查阅：[firecracker.yaml](https://github.com/firecracker-microvm/firecracker/blob/main/src/firecracker/swagger/firecracker.yaml)。
 
 | Schema                    | Property           | keyboard | serial console | virtio-block | vhost-user-block | virtio-net | virtio-vsock | virtio-rng | virtio-pmem |
 | ------------------------- | ------------------ | :------: | :------------: | :----------: | :--------------: | :--------: | :----------: | :--------: | :---------: |
@@ -106,17 +98,13 @@ specification:
 |                           | root_device        |    O     |       O        |      O       |        O         |     O      |      O       |     O      |    **R**    |
 |                           | read_only          |    O     |       O        |      O       |        O         |     O      |      O       |     O      |    **R**    |
 
-\* `Drive`'s `drive_id`, `is_root_device` and `partuuid` can be configured by
-either virtio-block or vhost-user-block devices.
+\* `Drive` 的 `drive_id`、`is_root_device` 和 `partuuid` 可通过 virtio-block 或 vhost-user-block 设备进行配置。
 
-\*\* The `TokenBucket` can be configured with any combination of virtio-net,
-virtio-block and virtio-rng devices.
+\*\* `TokenBucket` 可配置为任意组合的 virtio-net、virtio-block 和 virtio-rng 设备。
 
-## Output Schema
+## 输出模式
 
-All output schema fields can be found in the [Swagger](https://swagger.io)
-specification:
-[firecracker.yaml](./../src/firecracker/swagger/firecracker.yaml).
+所有输出模式字段均可在[Swagger](https://swagger.io)规范中查阅：[firecracker.yaml](https://github.com/firecracker-microvm/firecracker/blob/main/src/firecracker/swagger/firecracker.yaml)。
 
 | Schema                 | Property          | keyboard | serial console | virtio-block | vhost-user-block | virtio-net | virtio-vsock |
 | ---------------------- | ----------------- | :------: | :------------: | :----------: | :--------------: | :--------: | :----------: |
@@ -131,11 +119,9 @@ specification:
 |                        | track_dirty_pages |    O     |       O        |      O       |        O         |     O      |      O       |
 |                        | vcpu_count        |    O     |       O        |      O       |        O         |     O      |      O       |
 
-## Instance Actions
+## 实例操作
 
-All instance actions can be found in the [Swagger](https://swagger.io)
-specification:
-[firecracker.yaml](./../src/firecracker/swagger/firecracker.yaml).
+所有实例操作均可在[Swagger](https://swagger.io)规范中查阅：[firecracker.yaml](https://github.com/firecracker-microvm/firecracker/blob/main/src/firecracker/swagger/firecracker.yaml)。
 
 | Action           | keyboard | serial console | virtio-block | vhost-user-block | virtio-net | virtio-vsock |
 | ---------------- | :------: | :------------: | :----------: | :--------------: | :--------: | :----------: |
