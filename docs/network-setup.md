@@ -1,81 +1,52 @@
-# Getting Started Firecracker Network Setup
+# Firecracker 网络设置入门
 
-This is a simple quick-start guide to getting one or more Firecracker microVMs
-connected to the Internet via the host. If you run a production setup, you
-should consider modifying this setup to accommodate your specific needs.
+这是一份简易快速入门指南，用于将一个或多个 Firecracker 微虚拟机通过主机连接至互联网。若您运行的是生产环境配置，应考虑修改此设置以满足您的具体需求。
 
 > [!NOTE]
 >
-> Currently, Firecracker supports only a TUN/TAP network backend with no multi
-> queue support.
+> 目前，Firecracker 仅支持 TUN/TAP 网络后端，且不支持多队列功能。
 
-The steps in this guide assume `eth0` to be your Internet-facing network
-interface on the host. If `eth0` isn't your main network interface, you should
-change the value to the correct one in the commands below. IPv4 is also assumed
-to be used, so you will need to adapt the instructions accordingly to support
-IPv6.
+本指南中的步骤默认将 `eth0` 视为主机上连接互联网的网络接口。若 `eth0` 并非您的主网络接口，请在以下命令中将其替换为正确的接口名称。同时默认使用 IPv4 协议，若需支持 IPv6，请相应调整操作步骤。
 
-Each microVM requires a host network interface (like `eth0`) and a Linux `tap`
-device (like `tap0`) used by Firecracker, but the differences in configuration
-stem from routing: how packets from the `tap` get to the network interface
-(egress) and vice-versa (ingress). There are three main approaches of how to
-configure routing for a microVM.
+每个微虚拟机都需要一个主机网络接口（如`eth0`）和一个由 Firecracker 使用的 Linux `tap`设备（如`tap0`），但配置差异主要源于路由设置：即数据包如何从`tap`设备到达网络接口（出站）以及反向路径（入站）。配置微虚拟机路由主要有三种方法。
 
-1. **NAT-based**, which is presented in the main part of this guide. It is
-   simple but doesn't expose your microVM to the local network (LAN).
-1. **Bridge-based**, which exposes your microVM to the local network. Learn more
-   about in the _Advanced: Bridge-based routing_ section of this guide.
-1. **Namespaced NAT**, which sacrifices performance in comparison to the other
-   approaches but is desired in the scenario when two clones of the same microVM
-   are running at the same time. To learn more about it, check out the
-   [Network Connectivity for Clones](./snapshotting/network-for-clones.md)
-   guide.
+1. **基于 NAT**，本指南主体部分将详细介绍该方案。其实现简单，但无法使微虚拟机暴露于局域网（LAN）。
+1. **基于桥接**，可使微虚拟机暴露于局域网。更多信息请参阅本指南的 _Advanced: Bridge-based routing_ 章节。
+1. **命名空间 NAT**，与其他方法相比，这种方法牺牲了一定的性能，但在需要同时运行同一 microVM 的两个克隆实例的场景下非常有用。更多详情请参阅[克隆实例的网络连接](snapshotting/network-for-clones.md)指南。
 
-To run multiple microVMs while using NAT-based routing, check out the _Advanced:
-Multiple guests_ section. The same principles can be applied to other routing
-methods with a bit more effort.
+要同时运行多个微虚拟机并使用基于 NAT 的路由，请参阅 _Advanced:Multiple guests_ 章节。相同原理也可应用于其他路由方法，但需要稍作调整。
 
-For the choice of firewall, `nft` is recommended for use on production Linux
-systems, but, for the sake of compatibility, this guide provides a choice
-between either `nft` or the `iptables-nft` translation layer. The latter is
-[no longer recommended](https://access.redhat.com/solutions/6739041) but may be
-more familiar to readers.
+在防火墙选择方面，建议在生产环境的 Linux 系统上使用 `nft`。但出于兼容性考虑，本指南同时提供 `nft` 与 `iptables-nft` 转换层两种选择。虽然后者[已不再推荐](https://access.redhat.com/solutions/6739041)，但可能更符合读者的使用习惯。
 
-## On the Host
+## 在主机上
 
-The first step on the host for any microVM is to create a Linux `tap` device,
-which Firecracker will use for networking.
+任何微虚拟机在宿主机上的第一步都是创建一个 Linux `tap` 设备，Firecracker 将使用该设备进行网络通信。
 
-For this setup, only two IP addresses will be necessary - one for the `tap`
-device and one for the guest itself, through which you will, for example, `ssh`
-into the guest. So, we'll choose the smallest IPv4 subnet needed for 2
-addresses: `/30`. For this VM, let's use the `172.16.0.1` `tap` IP and the
-`172.16.0.2` guest IP.
+对于此配置，仅需两个 IP 地址——一个用于`tap`设备，另一个用于客户机本身，您可通过该地址（例如使用`ssh`）连接至客户机。因此，我们将选择满足两个地址需求的最小 IPv4 子网：`/30`。
+本虚拟机中，`tap`设备使用`172.16.0.1`，客户机使用`172.16.0.2`。
 
 ```bash
-# Create the tap device.
+# 创建 tap 设备。
 sudo ip tuntap add tap0 mode tap
-# Assign it the tap IP and start up the device.
+# 为其分配 tap IP地址并启动设备。
 sudo ip addr add 172.16.0.1/30 dev tap0
 sudo ip link set tap0 up
 ```
 
 > [!NOTE]
 >
-> The IP of the TAP device should be chosen such that it's not in the same
-> subnet as the IP address of the host.
+> TAP 设备的 IP 地址应选择为与主机 IP 地址不在同一子网。
 
-We'll need to enable IPv4 forwarding on the system.
+我们需要在系统上启用 IPv4 转发功能。
 
 ```bash
 echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
 ```
 
-### Configuration via `nft`
+### 通过 `nft` 进行配置
 
-We'll need an nftables table for our routing needs, and 2 chains inside that
-table: one for NAT on `postrouting` stage, and another one for filtering on
-`forward` stage:
+我们需要一个用于路由需求的 nftables 表，并在该表内创建两个链：
+一个用于`postrouting`阶段的 NAT，另一个用于`forward`阶段的过滤：
 
 ```bash
 sudo nft add table firecracker
@@ -83,25 +54,21 @@ sudo nft 'add chain firecracker postrouting { type nat hook postrouting priority
 sudo nft 'add chain firecracker filter { type filter hook forward priority filter; policy accept; }'
 ```
 
-The first rule we'll need will masquerade packets from the guest IP as if they
-came from the host's IP, by changing the source IP address of these packets:
+第一条规则需要伪装来自客户机 IP 的数据包，使其看起来像是来自主机 IP 发送的，具体方法是修改这些数据包的源 IP 地址：
 
 ```bash
 sudo nft add rule firecracker postrouting ip saddr 172.16.0.2 oifname eth0 counter masquerade
 ```
 
-The second rule we'll need will accept packets from the tap IP (the guest will
-use the tap IP as its gateway and will therefore route its own packets through
-the tap IP) and direct them to the host network interface:
+第二条规则将接受来自 tap IP 的数据包（客户机将使用 tap IP 作为其网关，因此会将自身数据包通过 tap IP 进行路由），并将这些数据包转发至主机网络接口：
 
 ```bash
 sudo nft add rule firecracker filter iifname tap0 oifname eth0 accept
 ```
 
-### Configuration via `iptables-nft`
+### 通过 `iptables-nft` 进行配置
 
-Tables and chains are managed by `iptables-nft` automatically, but we'll need
-three rules to perform the NAT steps:
+表和链由 `iptables-nft` 自动管理，但我们需要三条规则来执行 NAT 步骤：
 
 ```bash
 sudo iptables-nft -t nat -A POSTROUTING -o eth0 -s 172.16.0.2 -j MASQUERADE
@@ -109,33 +76,30 @@ sudo iptables-nft -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEP
 sudo iptables-nft -A FORWARD -i tap0 -o eth0 -j ACCEPT
 ```
 
-## Setting Up Firecracker
+## 设置 Firecracker
 
 > [!NOTE]
 >
-> If you use the rootfs from the [getting started guide](getting-started.md),
-> you need to use a specific `MAC` address like `06:00:AC:10:00:02`. In this
-> `MAC` address, the last 4 bytes (`AC:10:00:02`) will represent the IP address
-> of the guest. In the default case, it is `172.16.0.2`. Otherwise, you can skip
-> the `guest_mac` field for network configuration. This way, the guest will
-> generate a random MAC address on startup.
+> 若使用[入门指南](getting-started.md)中的根文件系统，需指定特定`MAC`地址（如`06:00:AC:10:00:02`）。
+> 在此 `MAC` 地址中，最后 4 个字节（`AC:10:00:02`）将代表虚拟机的 IP 地址。默认情况下为 `172.16.0.2`。
+> 否则，可跳过网络配置中的 `guest_mac` 字段。此时虚拟机启动时将自动生成随机 MAC 地址。
+
+---
 
 > [!NOTE]
 >
-> The `iface_id` used during VM configuration is internal to Firecracker and
-> only used for management purposes. The name of the network interface in the
-> guest is determined by the guest itself. In this example we assume the guest
-> will name the network interface `eth0`.
+> 在虚拟机配置过程中使用的`iface_id`属于 Firecracker 内部标识，仅用于管理目的。
+> 网络接口在客户机中的名称由客户机自身决定。
+> 本例中假设客户机将该网络接口命名为`eth0`。
+
+---
 
 > [!NOTE]
 >
-> Firecracker cannot guarantee that the network interfaces in the guest will be
-> initialized in the guest in the same order as API calls used to set them up.
-> At the same time most kernels/distributions do initialize devices in the API
-> defined order.
+> Firecracker 无法保证在客户机中初始化的网络接口顺序与用于配置它们的 API 调用顺序一致。
+> 同时，大多数内核/发行版确实会按照 API 定义的顺序初始化设备。
 
-Before starting the guest, configure the network interface using Firecracker's
-API:
+在启动客户机之前，请使用 Firecracker 的 API 配置网络接口：
 
 ```bash
 curl --unix-socket /tmp/firecracker.socket -i \
@@ -149,8 +113,7 @@ curl --unix-socket /tmp/firecracker.socket -i \
     }'
 ```
 
-If you are using a configuration file instead of the API, add a section to your
-configuration file like this:
+若您使用的是配置文件而非 API，请在配置文件中添加如下内容：
 
 ```json
 "network-interfaces": [
@@ -162,15 +125,11 @@ configuration file like this:
 ],
 ```
 
-Alternatively, if you are using firectl, add
-`--tap-device=tap0/06:00:AC:10:00:02\` to your command line.
+或者，如果您使用的是 firectl，请在命令行中添加`--tap-device=tap0/06:00:AC:10:00:02\`。
 
-## In The Guest
+## 在客户机上
 
-You'll now need to assign the guest its IP, activate the guest's networking
-interface and set up the `tap` IP as the guest's gateway address, so that
-packets are routed through the `tap` device, where they are then picked up by
-the setup on the host prepared before:
+现在您需要为虚拟机分配 IP 地址，激活其网络接口，并将`tap`设备的 IP 设置为虚拟机的网关地址。这样数据包就能通过`tap`设备进行路由，随后由主机上预先配置的设置接收：
 
 ```bash
 ip addr add 172.16.0.2/30 dev eth0
@@ -178,11 +137,7 @@ ip link set eth0 up
 ip route add default via 172.16.0.1 dev eth0
 ```
 
-Now your guest should be able to route traffic to the internet (assuming that
-your host can get to the internet). To do anything useful, you probably want to
-resolve DNS names. In production, you'd want to use the right DNS server for
-your environment. For testing, you can add a public DNS server to
-`/etc/resolv.conf` by adding a line like this:
+现在您的访客设备应该能够将流量路由到互联网（假设您的主机能够访问互联网）。要完成任何有用的操作，您可能需要解析域名。在生产环境中，您需要使用适合您环境的正确 DNS 服务器。测试时，您可以在`/etc/resolv.conf`文件中添加一行类似以下内容的公共 DNS 服务器：
 
 ```console
 nameserver 8.8.8.8
@@ -190,108 +145,90 @@ nameserver 8.8.8.8
 
 > [!NOTE]
 >
-> Sometimes, it's undesirable to have `iproute2` (providing the `ip` command)
-> installed on your guest OS, or you simply want to have these steps be
-> performed automatically. To do this, check out the
-> [Advanced: Guest network configuration using kernel command line](#advanced-guest-network-configuration-using-kernel-command-line)
-> section.
+> 有时，在客户机操作系统上安装`iproute2`（提供`ip`命令）并非理想选择，或者您希望这些步骤自动执行。
+> 要实现此目标，请参阅[高级：使用内核命令行配置客户机网络](#高级使用内核命令行配置客户机网络)章节。
 
-## Cleaning up
+## 清理
 
-The first step to cleaning up is to delete the tap device on the host:
+清理的第一步是删除主机上的 tap 设备：
 
 ```bash
 sudo ip link del tap0
 ```
 
-### Cleanup using `nft`
+### 使用 `nft` 进行清理
 
-You'll want to delete the two nftables rules for NAT routing from the
-`postrouting` and `filter` chains. To do this with nftables, you'll need to look
-up the _handles_ (identifiers) of these rules by running:
+您需要删除位于`postrouting`和`filter`链中的两条用于 NAT 路由的 nftables 规则。使用 nftables 实现此操作时，需通过以下命令查询这些规则的 _句柄_ （标识符）：
 
 ```bash
 sudo nft -a list ruleset
 ```
 
-Now, find the `# handle` comments relating to the two rules and delete them. For
-example, if the handle to the masquerade rule is 1 and the one to the forwarding
-rule is 2:
+现在，找到与两条规则相关的`# handle`注释并删除它们。例如，如果伪装规则的句柄为 1，转发规则的句柄为 2：
 
 ```bash
 sudo nft delete rule firecracker postrouting handle 1
 sudo nft delete rule firecracker filter handle 2
 ```
 
-Run the following steps only **if you have no more guests** running on the host:
+仅当主机上**没有其他客户机进程运行**时，请执行以下步骤：
 
-Set IPv4 forwarding back to disabled:
+将 IPv4 转发设置回禁用状态：
 
 ```bash
 echo 0 | sudo tee /proc/sys/net/ipv4/ip_forward
 ```
 
-If you're using `nft`, delete the `firecracker` table to revert your nftables
-configuration fully back to its initial state:
+若您正在使用 `nft`，请删除 `firecracker` 表以将您的 nftables 配置完全恢复至初始状态：
 
 ```bash
 sudo nft delete table firecracker
 ```
 
-### Cleanup using `iptables-nft`
+### 使用 `iptables-nft` 进行清理
 
-Of the configured `iptables-nft` rules, two should be deleted if you have guests
-remaining in your configuration:
+在已配置的 `iptables-nft` 规则中，若客户机仍存在于您的配置中，则应删除以下两条规则：
 
 ```bash
 sudo iptables-nft -t nat -D POSTROUTING -o eth0 -s 172.16.0.2 -j MASQUERADE
 sudo iptables-nft -D FORWARD -i tap0 -o eth0 -j ACCEPT
 ```
 
-**If you have no more guests** running on the host, then similarly set IPv4
-forwarding back to disabled:
+如果主机上**已无客户机运行**则同样将 IPv4 转发设置回禁用状态：
 
 ```bash
 echo 0 | sudo tee /proc/sys/net/ipv4/ip_forward
 ```
 
-And delete the remaining `conntrack` rule that applies to all guests:
+并删除适用于所有访客的剩余 `conntrack` 规则：
 
 ```bash
 sudo iptables-nft -D FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 ```
 
-If nothing else is using `iptables-nft` on the system, you may even want to
-delete the entire system ruleset like so:
+如果系统上没有其他进程使用 `iptables-nft`，您甚至可以像这样删除整个系统规则集：
 
 ```bash
 sudo iptables-nft -F
 sudo iptables-nft -t nat -F
 ```
 
-## Advanced: Multiple guests
+## 高级：多客户机
 
-To configure multiple guests, we will only need to repeat some of the steps in
-this setup for each of the microVMs:
+要配置多个客户机，我们只需为每个微虚拟机重复本设置中的部分步骤：
 
-1. Each microVM has its own subnet and the two IP addresses inside of it: the
-   `tap` IP and the guest IP.
-1. Each microVM has its own two nftables rules for masquerading and forwarding,
-   while the same table and two chains can be shared between the microVMs.
-1. Each microVM has its own routing configuration inside the guest itself
-   (achieved through `iproute2` or the method described in the _Advanced: Guest
-   network configuration at kernel level_ section).
+1. 每个微虚拟机（microVM）拥有独立子网及两个内部 IP 地址：`tap` IP 和客户机 IP。
+1. 每个 microVM 都有自己用于伪装（masquerading）和转发（forwarding）的两条 nftables 规则，而这些 microVM 可以共享同一张表和两个链。
+1. 每个微虚拟机在客户系统内部拥有独立的路由配置（通过`iproute2`实现，或采用《高级：内核级宾客网络配置》章节所述方法）。
 
-To give a more concrete example, **let's add a second microVM** to the one
-you've already configured:
+为了给出更具体的示例，让我们在已配置的微虚拟机基础上**添加第二个微虚拟机**：
 
-Let's assume we allocate /30 subnets in the 172.16.0.0/16 range sequentially to
-give out as few addresses as needed.
+假设我们在 172.16.0.0/16 范围内按顺序分配/30 子网，以尽可能少地分配地址。
 
-The next /30 subnet in the 172.16.0.0/16 range will give us these two IPs:
-172.16.0.5 as the `tap` IP and 172.16.0.6 as the guest IP.
+在 172.16.0.0/16 范围内，下一个 /30 子网将提供以下两个 IP 地址：
+172.16.0.5 作为 `tap` 接口的 IP 地址，172.16.0.6 作为虚拟机（guest）的 IP 地址。
 
-Our new `tap` device will, sequentially, have the name `tap1`:
+我们的新`tap`设备将依次命名为`tap1`：
 
 ```bash
 sudo ip tuntap add tap1 mode tap
@@ -299,23 +236,21 @@ sudo ip addr add 172.16.0.5/30 dev tap1
 sudo ip link set tap1 up
 ```
 
-Now, let's add the new two `nft` rules, also with the new values:
+现在，让我们添加两个新的 `nft` 规则，同时使用新的值：
 
 ```bash
 sudo nft add rule firecracker postrouting ip saddr 172.16.0.6 oifname eth0 counter masquerade
 sudo nft add rule firecracker filter iifname tap1 oifname eth0 accept
 ```
 
-If using `iptables-nft`, add the rules like so:
+若使用 `iptables-nft`，请按以下方式添加规则：
 
 ```bash
 sudo iptables-nft -t nat -A POSTROUTING -o eth0 -s 172.16.0.6 -j MASQUERADE
 sudo iptables-nft -A FORWARD -i tap1 -o eth0 -j ACCEPT
 ```
 
-Modify your Firecracker configuration with the `host_dev_name` now being `tap1`
-instead of `tap0`, boot up the guest and perform the routing inside of it like
-so, changing the guest IP and `tap` IP:
+修改您的 Firecracker 配置，将`host_dev_name`从`tap0`改为`tap1`，启动客户机并在其中执行路由设置，具体操作如下：修改虚拟机 IP 地址和`tap`接口 IP 地址：
 
 ```bash
 ip addr add 172.16.0.6/30 dev eth0
@@ -323,105 +258,92 @@ ip link set eth0 up
 ip route add default via 172.16.0.5 dev eth0
 ```
 
-Or, you can use the setup from
-[Advanced: Guest network configuration](#advanced-guest-network-configuration-using-kernel-command-line)
-by simply changing the G and T variables, i.e. the guest IP and `tap` IP.
+或者，您可以使用[高级：客户机网络配置](#高级使用内核命令行配置客户机网络)中的设置方案，只需修改 G 和 T 变量即可，即访客 IP 和`tap`接口 IP。
 
 > [!NOTE]
 >
-> If you'd like to calculate the guest and `tap` IPs using the sequential subnet
-> allocation method that has been used here, you can use the following formulas
-> specific to IPv4 addresses:
+> 若需使用本文采用的顺序子网分配法计算访客和`tap` IP 地址，可使用以下针对 IPv4 地址的专用公式：
 >
 > `tap` IP = `172.16.[(A*O+1)/256].[(A*O+1)%256]`.
 >
 > Guest IP = `172.16.[(A*O+2)/256].[(A*O+2)%256]`.
 >
-> Round down the division and replace `A` with the amount of IP addresses inside
-> your subnet (for a /30 subnet, that will be 4 addresses, for example) and
-> replace `O` with the sequential number of your microVM, starting at 0. You can
-> replace `172.16` with any other values that fit between between 1 and 255 as
-> usual with an IPv4 address.
+> 将除法结果向下取整，并将`A`替换为子网内的 IP 地址数量（例如对于/30 子网，该值为 4 个地址），同时将`O`替换为微虚拟机的序列号（从 0 开始计数）。您> 可将`172.16`替换为 1 至 255 之间的任意数值，此操作与常规 IPv4 地址处理方式相同。
 >
-> For example, let's calculate the addresses of the 1000-th microVM with a /30
-> subnet in the `172.16.0.0/16` range:
+> 例如，让我们计算`172.16.0.0/16`范围内具有/30 子网的第 1000 个微虚拟机的地址：
 >
 > `tap` IP = `172.16.[(4*999+1)/256].[(4*999+1)%256]` = `172.16.15.157`.
 >
 > Guest IP = `172.16.[(4*999+2)/256].[(4*999+2)%256]` = `172.16.15.158`.
 >
-> This allocation setup has been used successfully in the `firecracker-demo`
-> project for launching several thousand microVMs on the same host:
-> [relevant lines](https://github.com/firecracker-microvm/firecracker-demo/blob/63717c6e7fbd277bdec8e26a5533d53544a760bb/start-firecracker.sh#L45).
+> 该分配方案已在`firecracker-demo`项目中成功应用，用于在同一主机上启动数千个微虚拟机：
+> [相关代码行](https://github.com/firecracker-microvm/firecracker-demo/blob/63717c6e7fbd277bdec8e26a5533d53544a760bb/start-firecracker.sh#L45).
 
-## Advanced: Bridge-based routing
+## 高级：基于桥接的路由
 
-### On The Host
+### 在主机上（基于桥接）
 
-1. Create a bridge interface:
+1. 创建桥接接口：
 
    ```bash
    sudo ip link add name br0 type bridge
    ```
 
-1. Add the `tap` device [created above](#on-the-host) to the bridge:
+1. 将[上面创建的](#在主机上) `tap` 设备添加到网桥中：
 
    ```bash
    sudo ip link set dev tap0 master br0
    ```
 
-1. Define an IP address in your network for the bridge:
+1. 为桥接器在您的网络中定义一个 IP 地址：
 
-   For example, if your gateway were on `192.168.1.1` and you wanted to use this
-   for getting dynamic IPs, you would want to give the bridge an unused IP
-   address in the `192.168.1.0/24` subnet.
+   例如，如果您的网关位于`192.168.1.1`，且您希望使用该地址获取动态 IP，则应为桥接器分配`192.168.1.0/24`子网中未使用的 IP 地址。
 
    ```bash
    sudo ip address add 192.168.1.7/24 dev br0
    ```
 
-1. Add a firewall rule to allow traffic to be routed to the guest:
+1. 添加防火墙规则以允许流量路由至虚拟机：
 
    ```bash
    sudo iptables -t nat -A POSTROUTING -o br0 -j MASQUERADE
    ```
 
-1. Once you're cleaning up the configuration, make sure to delete the bridge:
+1. 在清理配置时，请务必删除桥接器：
 
    ```bash
    sudo ip link del br0
    ```
 
-### On The Guest
+### 在客户机上（基于桥接）
 
-1. Define an unused IP address in the bridge's subnet e.g., `192.168.1.169/24`.
+1. 在桥接子网中定义一个未使用的 IP 地址，例如`192.168.1.169/24`。
 
-   **Note**: Alternatively, you could rely on DHCP for getting a dynamic IP
-   address from your gateway.
+   **注意**：您也可以依赖 DHCP 从网关获取动态 IP 地址。
 
    ```bash
    ip addr add 192.168.1.169/24 dev eth0
    ```
 
-1. Enable the network interface:
+1. 启用网络接口：
 
    ```bash
    ip link set eth0 up
    ```
 
-1. Create a route to the bridge device
+1. 创建到桥接设备的路由
 
    ```bash
    ip r add 192.168.1.1 via 192.168.1.7 dev eth0
    ```
 
-1. Create a route to the internet via the bridge
+1. 通过桥接器创建通往互联网的路由
 
    ```bash
    ip r add default via 192.168.1.7 dev eth0
    ```
 
-   When done, your route table should look similar to the following:
+   完成后，您的路由表应类似于以下内容：
 
    ```bash
    ip r
@@ -430,30 +352,20 @@ by simply changing the G and T variables, i.e. the guest IP and `tap` IP.
    192.168.1.1 via 192.168.1.7 dev eth0
    ```
 
-1. Add your nameserver to `/etc/resolve.conf`
+1. 将您的域名服务器添加到 `/etc/resolve.conf` 中
 
    ```bash
    # cat /etc/resolv.conf
    nameserver 192.168.1.1
    ```
 
-## Advanced: Guest network configuration using kernel command line
+## 高级：使用内核命令行配置客户机网络
 
-The Linux kernel supports an `ip` CLI arguments that can be passed to it when
-booting. Boot arguments in Firecracker are configured in the `boot_args`
-property of the boot source (`boot-source` object in the JSON configuration or
-the equivalent endpoint in the API server).
+Linux 内核支持在启动时传递的 `ip` 命令行参数。在 Firecracker 中，启动参数通过启动源的 `boot_args` 属性进行配置（即 JSON 配置中的 `boot-source` 对象，或 API 服务器中对应的端点）。
 
-The value of the `ip` CLI argument for our setup will be the of this format:
-`G::T:GM::GI:off`. G is the guest IP (without the subnet), T is the `tap` IP
-(without the subnet), GM is the "long" mask IP of the guest CIDR and GI is the
-name of the guest network interface.
+在我们的配置中，`ip` CLI 参数的值将采用以下格式：`G::T:GM::GI:off`。其中 G 表示客户机 IP（不含子网），T 表示 `tap` IP（不含子网），GM 是客户机 CIDR 的“长”掩码 IP，GI 是客户机网络接口的名称。
 
-Substituting our values, we get:
-`ip=172.16.0.2::172.16.0.1:255.255.255.252::eth0:off`. Insert this at the end of
-your boot arguments for your microVM, and the guest Linux kernel will
-automatically perform the routing configuration done in the _In the Guest_
-section without needing `iproute2` installed in the guest.
+代入我们的值，得到：
+`ip=172.16.0.2::172.16.0.1:255.255.255.252::eth0:off`。将此内容添加至微虚拟机的启动参数末尾，宾客 Linux 内核将自动执行 _In the Guest_ 章节中的路由配置，无需在客户系统中安装`iproute2`。
 
-As soon as you boot the guest, it will already be connected to the network
-(assuming you correctly performing the other steps).
+一旦启动虚拟机，它就会自动连接到网络（前提是你正确执行了其他步骤）。
