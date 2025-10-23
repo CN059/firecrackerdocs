@@ -1,73 +1,58 @@
-# Seccompiler - overview and user guide
+# Seccompiler - 概述与用户指南
 
-## Overview
+## 概述
 
-Seccompiler-bin is a tool that compiles seccomp filters expressed as JSON files
-into serialized, binary BPF code that is directly consumed by Firecracker, at
-build or launch time.
+Seccompiler-bin 是一款工具，用于将用 JSON 文件描述的 seccomp 过滤器编译为序列化的二进制 BPF 代码，该代码可在构建或启动时直接被 Firecracker 调用。
 
-Seccompiler-bin uses a custom [JSON file structure](#json-file-format), detailed
-further below, that the filters must adhere to.
+Seccompiler-bin 使用自定义的 [JSON 文件结构](#json-file-format)，过滤器必须遵循该结构（详见下文）。
 
-Besides the seccompiler-bin executable, seccompiler also exports a library
-interface, with helper functions for deserializing and installing the binary
-filters.
+除 seccompiler-bin 可执行文件外，seccompiler 还提供库接口，包含用于反序列化和安装二进制过滤器的辅助函数。
 
-## Usage
+## 使用
 
 ### Seccompiler-bin
 
-To view the seccompiler-bin command line arguments, pass the `--help` parameter
-to the executable.
+要查看 seccompiler-bin 的命令行参数，请向可执行文件传递 `--help` 参数。
 
-Example usage:
+使用示例：
 
 ```bash
 ./seccompiler-bin
-    --target-arch "x86_64"  # The CPU arch where the BPF program will run.
-                            # Supported architectures: x86_64, aarch64.
-    --input-file "x86_64_musl.json" # File path of the JSON input.
-    --output-file "bpf_x86_64_musl" # Optional path of the output file.
-                                    # [default: "seccomp_binary_filter.out"]
-    --basic # Optional, creates basic filters, discarding any parameter checks.
-            # (Deprecated).
+    --target-arch "x86_64"                             # BPF程序运行的CPU架构。
+                                                                        # 支持架构：x86_64, aarch64。
+    --input-file "x86_64_musl.json"             # JSON输入文件的路径。
+    --output-file "bpf_x86_64_musl"           # 可选的输出文件路径。
+                                                                       # [默认值：“seccomp_binary_filter.out”]
+    --basic                                                       # 可选，创建基本过滤器，忽略任何参数检查。
+                                                                      # (已弃用)。
 ```
 
-### Seccompiler library
+### Seccompiler 库
 
-To view the library documentation, navigate to the seccompiler source code, in
-`firecracker/src/seccompiler/src` and run `cargo doc --lib --open`.
+要查看库文档，请导航至 seccompiler 源代码目录 `firecracker/src/seccompiler/src`，并运行 `cargo doc --lib --open`。
 
-## Where is seccompiler implemented?
+## seccompiler 在哪里实现？
 
-Seccompiler is implemented as another package in the Firecracker cargo
-workspace. The code is located at `firecracker/src/seccompiler/src`.
+Seccompiler 作为另一个包在 Firecracker cargo 工作区中实现。其代码位于 `firecracker/src/seccompiler/src`。
 
-## Supported platforms
+## 支持的平台
 
-Seccompiler-bin is supported on the
-[same platforms as Firecracker](../README.md#supported-platforms).
+Seccompiler-bin 在
+[与 Firecracker 相同的平台上得到支持](README.md#测试平台)。
 
-## Release policy
+## 发布政策
 
-Seccompiler-bin follows Firecracker's [release policy](RELEASE_POLICY.md) and
-version (it's released at the same time, with the same version number and
-adheres to the same support window).
+Seccompiler-bin 遵循 Firecracker 的 [发布政策](RELEASE_POLICY.md) 及版本规则（与 Firecracker 同步发布，采用相同版本号，并遵循相同的支持周期）。
 
-## JSON file format
+## JSON 文件格式
 
-A JSON file expresses the seccomp policy for the entire Firecracker process. It
-contains multiple filters, one per each thread category and is specific to just
-one target platform.
+一个 JSON 文件定义了整个 Firecracker 进程的 seccomp 策略。该文件包含多个过滤器，每个线程类别对应一个过滤器，且仅适用于特定目标平台。
 
-This means that Firecracker has a JSON file for each supported target (currently
-determined by the arch-libc combinations). You can view them in
-`resources/seccomp`.
+这意味着 Firecracker 为每个支持的目标（当前由 arch-libc 组合决定）都提供了一个 JSON 文件。您可以在`resources/seccomp`目录中查看这些文件。
 
-At the top level, the file requires an object that maps thread categories (vmm,
-api and vcpu) to seccomp filters:
+在顶级文件中，需要一个将线程类别（vmm、api 和 vcpu）映射到 seccomp 过滤器的对象：
 
-```
+```json
 {
     "vmm": {
        "default_action": {
@@ -81,46 +66,39 @@ api and vcpu) to seccomp filters:
 }
 ```
 
-The associated filter is a JSON object containing the `default_action`,
-`filter_action` and `filter`.
+关联过滤器是一个包含`default_action`、`filter_action`和`filter`的 JSON 对象。
 
-The `default_action` represents the action we have to execute if none of the
-rules in `filter` matches, and `filter_action` is what gets executed if a rule
-in the filter matches (e.g: `"Allow"` in the case of implementing an allowlist).
+`default_action` 表示当 `filter` 中没有任何规则匹配时需要执行的操作，而 `filter_action` 则是在过滤器中的某条规则匹配时执行的操作（例如：在实现允许列表时为 `"Allow"`）。
 
-An **action** is the JSON representation of the following enum:
+一个**action**是以下枚举的 JSON 表示形式：
 
 ```rust
 pub enum SeccompAction {
-    Allow, // Allows syscall.
-    Errno(u32), // Returns from syscall with specified error number.
-    Kill, // Kills calling process.
-    Log, // Same as allow but logs call.
-    Trace(u32), // Notifies tracing process of the caller with respective number.
-    Trap, // Sends `SIGSYS` to the calling process.
+    Allow,          // 允许系统调用。
+    Errno(u32), // 返回指定错误编号的系统调用结果。
+    Kill,               // 终止调用进程。
+    Log,            // 与allow相同，但会记录调用。
+    Trace(u32), // 通知调用方对应编号的跟踪进程。
+    Trap,           // 向调用进程发送 `SIGSYS` 信号。
 }
 ```
 
-The `filter` property specifies the set of rules that would trigger a match.
-This is an array containing multiple **or-bound SyscallRule** **objects** (if
-one of them matches, the corresponding action gets triggered).
+`filter` 属性指定了会触发匹配的一组规则。 它是一个数组，包含多个 **or-bound SyscallRule** **objects**（只要其中任意一个匹配，就会触发相应的动作）。
 
 The **SyscallRule** object is used for adding a rule to a syscall. It has an
 optional `args` property that is used to specify a vector of and-bound
 conditions that the syscall arguments must satisfy in order for the rule to
 match.
 
-In the absence of the `args` property, the corresponding action will get
-triggered by any call that matches that name, irrespective of the argument
-values.
+若缺少 `args` 属性，则任何匹配该名称的调用都会触发对应操作，无论参数值如何。
 
-Here is the structure of the object:
+以下是该对象的结构：
 
-```
+```json
 {
-    "syscall": "accept4", // mandatory, the syscall name
-    "comment": "Used by vsock & api thread", // optional, for adding meaningful comments
-    "args": [...] // optional, vector of and-bound conditions for the parameters
+    "syscall": "accept4", // 必填项，系统调用名称
+    "comment": "Used by vsock & api thread", // 可选，用于添加有意义的注释
+    "args": [...] // 可选，参数的and-bound条件向量
 }
 ```
 
@@ -149,18 +127,18 @@ constants in the JSON file. You may however add an optional `comment` property
 to each condition object. This way, you can provide meaning to each numeric
 value, much like when using named parameters, like so:
 
-```
+```json
 {
-    "syscall": "accept4",
-    "args": [
-        {
-            "index": 3,
-            "type": "dword",
-            "op": "eq",
-            "val": 1,
-            "comment": "libc::AF_UNIX"
-        }
-    ]
+  "syscall": "accept4",
+  "args": [
+    {
+      "index": 3,
+      "type": "dword",
+      "op": "eq",
+      "val": 1,
+      "comment": "libc::AF_UNIX"
+    }
+  ]
 }
 ```
 
