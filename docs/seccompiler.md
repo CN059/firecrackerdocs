@@ -4,7 +4,7 @@
 
 Seccompiler-bin 是一款工具，用于将用 JSON 文件描述的 seccomp 过滤器编译为序列化的二进制 BPF 代码，该代码可在构建或启动时直接被 Firecracker 调用。
 
-Seccompiler-bin 使用自定义的 [JSON 文件结构](#json-file-format)，过滤器必须遵循该结构（详见下文）。
+Seccompiler-bin 使用自定义的 [JSON 文件结构](#JSON-文件格式)，过滤器必须遵循该结构（详见下文）。
 
 除 seccompiler-bin 可执行文件外，seccompiler 还提供库接口，包含用于反序列化和安装二进制过滤器的辅助函数。
 
